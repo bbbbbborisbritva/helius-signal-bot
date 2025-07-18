@@ -9,6 +9,16 @@ app = Flask(__name__)
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 TELEGRAM_CHANNEL_ID = os.getenv("TELEGRAM_CHANNEL_ID")
 
+# Optional: confirm bot works by sending message at startup
+try:
+    requests.post(
+        f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage",
+        data={"chat_id": TELEGRAM_CHANNEL_ID, "text": "🚀 Bot is online and listening."}
+    )
+except Exception as e:
+    print("❌ Telegram startup message failed:", e)
+
+# DB
 conn = sqlite3.connect('trades.db', check_same_thread=False)
 c = conn.cursor()
 c.execute('''CREATE TABLE IF NOT EXISTS buys (
@@ -19,6 +29,7 @@ c.execute('''CREATE TABLE IF NOT EXISTS buys (
 )''')
 conn.commit()
 
+# Wallet map
 wallets = {
     "2JarGaaVhqcV2FbsxQPLagFpPi4qh3SuKt7adYk299hr": ("aaaw1", "🥝"),
     "3gHfSNNpSYE3DrDYUsfZ62fGnFrCxiLuR2n8BiBybonk": ("dust dev", "🧤"),
@@ -43,39 +54,55 @@ def send_alert(token, contract, buyers):
         name, emoji, amount = b
         message += f"{emoji} {name}: {amount:.2f} SOL\n"
 
-    url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
-    data = {
-        "chat_id": TELEGRAM_CHANNEL_ID,
-        "text": message,
-        "parse_mode": "Markdown"
-    }
-    requests.post(url, data=data)
+    try:
+        url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
+        data = {
+            "chat_id": TELEGRAM_CHANNEL_ID,
+            "text": message,
+            "parse_mode": "Markdown"
+        }
+        requests.post(url, data=data)
+    except Exception as e:
+        print("❌ Failed to send Telegram alert:", e)
 
 @app.route("/webhook", methods=["POST"])
 def webhook():
-    data = request.json
-    txs = data.get("transactions", [])
+    try:
+        data = request.json
+        print("✅ Webhook received")
+        txs = data.get("transactions", [])
 
-    for tx in txs:
-        wallet = tx.get("accountData", [{}])[0].get("account", "")
-        if wallet in wallets:
-            token_info = tx.get("tokenTransfers", [{}])[0]
-            token = token_info.get("symbol", "UNKNOWN")
-            contract = token_info.get("mint", "")
-            amount = float(token_info.get("tokenAmount", 0))
+        for tx in txs:
+            wallet = tx.get("accountData", [{}])[0].get("account", "")
+            if wallet in wallets:
+                token_transfers = tx.get("tokenTransfers", [])
+                if not token_transfers:
+                    continue
 
-            now = datetime.utcnow()
-            c.execute("INSERT INTO buys VALUES (?, ?, ?, ?)", (token, wallet, amount, now))
-            conn.commit()
+                token_info = token_transfers[0]
+                token = token_info.get("symbol", "UNKNOWN")
+                contract = token_info.get("mint", "")
+                try:
+                    amount = float(token_info.get("tokenAmount", 0))
+                except:
+                    amount = 0
 
-            cutoff = now - timedelta(minutes=10)
-            c.execute("SELECT wallet, amount FROM buys WHERE token=? AND timestamp > ?", (token, cutoff))
-            rows = c.fetchall()
-            unique_wallets = list(set([r[0] for r in rows]))
+                now = datetime.utcnow()
+                print(f"🔍 {wallet} bought {token} ({amount} SOL)")
 
-            if len(unique_wallets) >= 1:  # testing mode
-                buyers_info = [(wallets[w][0], wallets[w][1], amt) for w, amt in rows if w in wallets][:1]
-                send_alert(token, contract, buyers_info)
+                c.execute("INSERT INTO buys VALUES (?, ?, ?, ?)", (token, wallet, amount, now))
+                conn.commit()
+
+                cutoff = now - timedelta(minutes=10)
+                c.execute("SELECT wallet, amount FROM buys WHERE token=? AND timestamp > ?", (token, cutoff))
+                rows = c.fetchall()
+                unique_wallets = list(set([r[0] for r in rows]))
+
+                if len(unique_wallets) >= 1:  # test mode: 1 wallet
+                    buyers_info = [(wallets[w][0], wallets[w][1], amt) for w, amt in rows if w in wallets][:1]
+                    send_alert(token, contract, buyers_info)
+    except Exception as e:
+        print("❌ Webhook handler error:", e)
 
     return "ok", 200
 
