@@ -73,10 +73,9 @@ def webhook():
             rows = c.fetchall()
             unique_wallets = list(set([r[0] for r in rows]))
 
-            if len(unique_wallets) >= 1:  # testing mode: trigger on 1 buyer
-    buyers_info = [(wallets[w][0], wallets[w][1], amt) for w, amt in rows if w in wallets][:1]
-    send_alert(token, contract, buyers_info)
-
+            if len(unique_wallets) >= 1:  # testing mode
+                buyers_info = [(wallets[w][0], wallets[w][1], amt) for w, amt in rows if w in wallets][:1]
+                send_alert(token, contract, buyers_info)
 
     return "ok", 200
 
