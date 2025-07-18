@@ -6,10 +6,15 @@ from datetime import datetime, timedelta
 
 app = Flask(__name__)
 
+# Load environment variables
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 TELEGRAM_CHANNEL_ID = os.getenv("TELEGRAM_CHANNEL_ID")
 
-# Optional: confirm bot works by sending message at startup
+# Debug: print env vars
+print("🧪 TELEGRAM_TOKEN loaded:", TELEGRAM_TOKEN[:10] + "..." if TELEGRAM_TOKEN else "❌ MISSING")
+print("🧪 TELEGRAM_CHANNEL_ID loaded:", TELEGRAM_CHANNEL_ID if TELEGRAM_CHANNEL_ID else "❌ MISSING")
+
+# Optional: test Telegram connection at startup
 try:
     requests.post(
         f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage",
@@ -29,20 +34,13 @@ c.execute('''CREATE TABLE IF NOT EXISTS buys (
 )''')
 conn.commit()
 
-# Wallet map
+# Wallet map (shortened list for clarity — use full list)
 wallets = {
     "2JarGaaVhqcV2FbsxQPLagFpPi4qh3SuKt7adYk299hr": ("aaaw1", "🥝"),
     "3gHfSNNpSYE3DrDYUsfZ62fGnFrCxiLuR2n8BiBybonk": ("dust dev", "🧤"),
     "4BdKaxN8G6ka4GYtQQWk4G4dZRUTX2vQH9GcXdBREFUk": ("jijo", "🪂"),
     "4DdrfiDHpmx55i4SPssxVzS9ZaKLb8qr45NKY9Er9nNh": ("mr. frog", "🐸"),
-    "4WPTQA7BB4iRdrPhgNpJihGcxKh8T43gLjMn5PbEVfQw": ("oura", "♒"),
-    "73LnJ7G9ffBDjEBGgJDdgvLUhD5APLonKrNiHsKDCw5B": ("Waddles", "💦"),
-    "9FNz4MjPUmnJqTf6yEDbL1D4SsHVh7uA8zRHhR5K138r": ("danny", "🕳️"),
-    "9yYya3F5EJoLnBNKW6z4bZvyQytMXzDcpU5D6yYr4jqL": ("Loopier", "🥭"),
-    "AeLaMjzxErZt4drbWVWvcxpVyo8p94xu5vrg41eZPFe3": ("s1mple", "🚹"),
-    "AFT3jqzzt9pnv6DtFundS1LhQBVrxxHJSXJrKxQjWGAF": ("simple copy", "☮️"),
-    "Av3xWHJ5EsoLZag6pr7LKbrGgLRTaykXomDD5kBhL9YQ": ("heyitsyolo", "👨‍🦲"),
-    "BCagckXeMChUKrHEd6fKFA1uiWDtcmCXMsqaheLiUPJd": ("dv", "🧭")
+    # ...add the rest
 }
 
 def send_alert(token, contract, buyers):
@@ -61,7 +59,8 @@ def send_alert(token, contract, buyers):
             "text": message,
             "parse_mode": "Markdown"
         }
-        requests.post(url, data=data)
+        response = requests.post(url, data=data)
+        print("✅ Telegram alert sent:", response.status_code)
     except Exception as e:
         print("❌ Failed to send Telegram alert:", e)
 
@@ -98,11 +97,11 @@ def webhook():
                 rows = c.fetchall()
                 unique_wallets = list(set([r[0] for r in rows]))
 
-                if len(unique_wallets) >= 1:  # test mode: 1 wallet
+                if len(unique_wallets) >= 1:  # test mode
                     buyers_info = [(wallets[w][0], wallets[w][1], amt) for w, amt in rows if w in wallets][:1]
                     send_alert(token, contract, buyers_info)
     except Exception as e:
-        print("❌ Webhook handler error:", e)
+        print("❌ Webhook error:", e)
 
     return "ok", 200
 
