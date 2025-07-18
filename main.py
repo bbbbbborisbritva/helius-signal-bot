@@ -1,43 +1,47 @@
-from flask import Flask, request
+import os
 import requests
 
-app = Flask(__name__)
+print("✅ Starting Helius Telegram Bot")
 
-TELEGRAM_TOKEN = "7444501428:AAESyTC8EwqQN1YybvmubepbCsDVrMzoQ5w"
-TELEGRAM_CHANNEL_ID = "-1002749606748"
+TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN", "")
+TELEGRAM_CHANNEL_ID = os.getenv("TELEGRAM_CHANNEL_ID", "")
+print("🧪 TELEGRAM_TOKEN loaded:", "✅" if TELEGRAM_TOKEN else "❌ MISSING")
+print("🧪 TELEGRAM_CHANNEL_ID loaded:", "✅" if TELEGRAM_CHANNEL_ID else "❌ MISSING")
 
-print("🧪 TELEGRAM_TOKEN loaded:", TELEGRAM_TOKEN[:10] + "...")
-print("🧪 TELEGRAM_CHANNEL_ID loaded:", TELEGRAM_CHANNEL_ID)
-
-# Test Telegram startup
 try:
-    requests.post(
+    r = requests.post(
         f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage",
-        data={"chat_id": TELEGRAM_CHANNEL_ID, "text": "🧪 Bot online — webhook logger ready"}
+        data={"chat_id": TELEGRAM_CHANNEL_ID, "text": "🧪 Bot is alive"}
     )
+    print("✅ Telegram test sent:", r.status_code)
 except Exception as e:
     print("❌ Telegram test failed:", e)
+
+from flask import Flask, request
+app = Flask(__name__)
+
+@app.route("/", methods=["GET"])
+def root():
+    return "alive", 200
 
 @app.route("/webhook", methods=["POST"])
 def webhook():
     try:
-        data = request.json
-        print("✅ Webhook received.")
-        print(f"📦 Payload preview:\n{str(data)[:1000]}")
+        data = request.get_json(force=True)
+        print("✅ Webhook hit:")
+        print(str(data)[:1000])
 
-        # Optional: notify in Telegram
         requests.post(
             f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage",
             data={
                 "chat_id": TELEGRAM_CHANNEL_ID,
-                "text": "📩 Webhook received\nPayload logged in Railway",
+                "text": "📩 Webhook triggered!",
             }
         )
-
     except Exception as e:
-        print("❌ Webhook crash:", e)
-
+        print("❌ Error in webhook:", e)
     return "ok", 200
 
 if __name__ == "__main__":
+    print("🚀 Launching Flask server...")
     app.run(host="0.0.0.0", port=5000)
