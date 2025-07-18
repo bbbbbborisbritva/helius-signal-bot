@@ -12,8 +12,8 @@ TELEGRAM_CHANNEL_ID = os.getenv("TELEGRAM_CHANNEL_ID")
 print("🔁 Starting Helius Telegram Bot")
 print(f"🧪 TELEGRAM_TOKEN loaded: {'✅' if TELEGRAM_TOKEN else '❌ MISSING'}")
 print(f"🧪 TELEGRAM_CHANNEL_ID loaded: {'✅' if TELEGRAM_CHANNEL_ID else '❌ MISSING'}")
+print("🧪 RAW ENV VARS:", dict(os.environ))  # For debugging in Railway logs
 
-# Send startup test message
 try:
     r = requests.get(f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage", params={
         "chat_id": TELEGRAM_CHANNEL_ID,
@@ -23,7 +23,6 @@ try:
 except Exception as e:
     print(f"❌ Telegram test failed: {e}")
 
-# Init SQLite
 conn = sqlite3.connect('trades.db', check_same_thread=False)
 c = conn.cursor()
 c.execute('''CREATE TABLE IF NOT EXISTS buys (
@@ -34,7 +33,6 @@ c.execute('''CREATE TABLE IF NOT EXISTS buys (
 )''')
 conn.commit()
 
-# Smart wallets
 wallets = {
     "2JarGaaVhqcV2FbsxQPLagFpPi4qh3SuKt7adYk299hr": ("aaaw1", "🥝"),
     "3gHfSNNpSYE3DrDYUsfZ62fGnFrCxiLuR2n8BiBybonk": ("dust dev", "🧤"),
@@ -106,6 +104,3 @@ def webhook():
     except Exception as e:
         print(f"❌ Webhook error: {e}")
         return "error", 500
-
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
