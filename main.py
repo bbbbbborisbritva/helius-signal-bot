@@ -1,29 +1,28 @@
 from flask import Flask, request
 import requests
 import sqlite3
-import os
 from datetime import datetime, timedelta
 
 app = Flask(__name__)
 
-# Load environment variables
-TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
-TELEGRAM_CHANNEL_ID = os.getenv("TELEGRAM_CHANNEL_ID")
+# Hardcoded temporarily for debug
+TELEGRAM_TOKEN = "7444501428:AAESyTC8EwqQN1YybvmubepbCsDVrMzoQ5w"
+TELEGRAM_CHANNEL_ID = "-1002749606748"
 
-# Debug: print env vars
-print("🧪 TELEGRAM_TOKEN loaded:", TELEGRAM_TOKEN[:10] + "..." if TELEGRAM_TOKEN else "❌ MISSING")
-print("🧪 TELEGRAM_CHANNEL_ID loaded:", TELEGRAM_CHANNEL_ID if TELEGRAM_CHANNEL_ID else "❌ MISSING")
+# Debug: print hardcoded values
+print("🧪 TELEGRAM_TOKEN loaded:", TELEGRAM_TOKEN[:10] + "...")
+print("🧪 TELEGRAM_CHANNEL_ID loaded:", TELEGRAM_CHANNEL_ID)
 
-# Optional: test Telegram connection at startup
+# Telegram test message at startup
 try:
     requests.post(
         f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage",
-        data={"chat_id": TELEGRAM_CHANNEL_ID, "text": "🚀 Bot is online and listening."}
+        data={"chat_id": TELEGRAM_CHANNEL_ID, "text": "🚀 Bot is online and listening (hardcoded)."}
     )
 except Exception as e:
     print("❌ Telegram startup message failed:", e)
 
-# DB
+# DB setup
 conn = sqlite3.connect('trades.db', check_same_thread=False)
 c = conn.cursor()
 c.execute('''CREATE TABLE IF NOT EXISTS buys (
@@ -34,13 +33,20 @@ c.execute('''CREATE TABLE IF NOT EXISTS buys (
 )''')
 conn.commit()
 
-# Wallet map (shortened list for clarity — use full list)
+# Tracked wallets
 wallets = {
     "2JarGaaVhqcV2FbsxQPLagFpPi4qh3SuKt7adYk299hr": ("aaaw1", "🥝"),
     "3gHfSNNpSYE3DrDYUsfZ62fGnFrCxiLuR2n8BiBybonk": ("dust dev", "🧤"),
     "4BdKaxN8G6ka4GYtQQWk4G4dZRUTX2vQH9GcXdBREFUk": ("jijo", "🪂"),
     "4DdrfiDHpmx55i4SPssxVzS9ZaKLb8qr45NKY9Er9nNh": ("mr. frog", "🐸"),
-    # ...add the rest
+    "4WPTQA7BB4iRdrPhgNpJihGcxKh8T43gLjMn5PbEVfQw": ("oura", "♒"),
+    "73LnJ7G9ffBDjEBGgJDdgvLUhD5APLonKrNiHsKDCw5B": ("Waddles", "💦"),
+    "9FNz4MjPUmnJqTf6yEDbL1D4SsHVh7uA8zRHhR5K138r": ("danny", "🕳️"),
+    "9yYya3F5EJoLnBNKW6z4bZvyQytMXzDcpU5D6yYr4jqL": ("Loopier", "🥭"),
+    "AeLaMjzxErZt4drbWVWvcxpVyo8p94xu5vrg41eZPFe3": ("s1mple", "🚹"),
+    "AFT3jqzzt9pnv6DtFundS1LhQBVrxxHJSXJrKxQjWGAF": ("simple copy", "☮️"),
+    "Av3xWHJ5EsoLZag6pr7LKbrGgLRTaykXomDD5kBhL9YQ": ("heyitsyolo", "👨‍🦲"),
+    "BCagckXeMChUKrHEd6fKFA1uiWDtcmCXMsqaheLiUPJd": ("dv", "🧭")
 }
 
 def send_alert(token, contract, buyers):
