@@ -9,19 +9,21 @@ app = Flask(__name__)
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 TELEGRAM_CHANNEL_ID = os.getenv("TELEGRAM_CHANNEL_ID")
 
-print("🧪 TELEGRAM_TOKEN loaded:", "✅" if TELEGRAM_TOKEN else "❌ MISSING")
-print("🧪 TELEGRAM_CHANNEL_ID loaded:", "✅" if TELEGRAM_CHANNEL_ID else "❌ MISSING")
+print("🔁 Starting Helius Telegram Bot")
+print(f"🧪 TELEGRAM_TOKEN loaded: {'✅' if TELEGRAM_TOKEN else '❌ MISSING'}")
+print(f"🧪 TELEGRAM_CHANNEL_ID loaded: {'✅' if TELEGRAM_CHANNEL_ID else '❌ MISSING'}")
 
-# Test Telegram on boot
-if TELEGRAM_TOKEN and TELEGRAM_CHANNEL_ID:
-    url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
-    data = {
+# Send startup test message
+try:
+    r = requests.get(f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage", params={
         "chat_id": TELEGRAM_CHANNEL_ID,
-        "text": "🚀 Helius Telegram Bot Started!",
-    }
-    r = requests.post(url, data=data)
-    print("📡 Telegram test sent:", r.status_code)
+        "text": "✅ Bot is live and ready to snipe."
+    })
+    print(f"✅ Telegram test sent: {r.status_code}")
+except Exception as e:
+    print(f"❌ Telegram test failed: {e}")
 
+# Init SQLite
 conn = sqlite3.connect('trades.db', check_same_thread=False)
 c = conn.cursor()
 c.execute('''CREATE TABLE IF NOT EXISTS buys (
@@ -32,13 +34,24 @@ c.execute('''CREATE TABLE IF NOT EXISTS buys (
 )''')
 conn.commit()
 
+# Smart wallets
 wallets = {
     "2JarGaaVhqcV2FbsxQPLagFpPi4qh3SuKt7adYk299hr": ("aaaw1", "🥝"),
     "3gHfSNNpSYE3DrDYUsfZ62fGnFrCxiLuR2n8BiBybonk": ("dust dev", "🧤"),
+    "4BdKaxN8G6ka4GYtQQWk4G4dZRUTX2vQH9GcXdBREFUk": ("jijo", "🪂"),
+    "4DdrfiDHpmx55i4SPssxVzS9ZaKLb8qr45NKY9Er9nNh": ("mr. frog", "🐸"),
+    "4WPTQA7BB4iRdrPhgNpJihGcxKh8T43gLjMn5PbEVfQw": ("oura", "♒"),
+    "73LnJ7G9ffBDjEBGgJDdgvLUhD5APLonKrNiHsKDCw5B": ("Waddles", "💦"),
+    "9FNz4MjPUmnJqTf6yEDbL1D4SsHVh7uA8zRHhR5K138r": ("danny", "🕳️"),
+    "9yYya3F5EJoLnBNKW6z4bZvyQytMXzDcpU5D6yYr4jqL": ("Loopier", "🥭"),
+    "AeLaMjzxErZt4drbWVWvcxpVyo8p94xu5vrg41eZPFe3": ("s1mple", "🚹"),
+    "AFT3jqzzt9pnv6DtFundS1LhQBVrxxHJSXJrKxQjWGAF": ("simple copy", "☮️"),
+    "Av3xWHJ5EsoLZag6pr7LKbrGgLRTaykXomDD5kBhL9YQ": ("heyitsyolo", "👨‍🦲"),
+    "BCagckXeMChUKrHEd6fKFA1uiWDtcmCXMsqaheLiUPJd": ("dv", "🧭")
 }
 
 def send_alert(token, contract, buyers):
-    message = f"⚠️ Wallet Bought!\n\n" \
+    message = f"⚠️ 5 Smart Wallets Aped In!\n\n" \
               f"🪙 Token: {token}\n" \
               f"📄 Contract: `{contract}`\n\n" \
               f"👤 Buyers:\n"
@@ -52,15 +65,21 @@ def send_alert(token, contract, buyers):
         "text": message,
         "parse_mode": "Markdown"
     }
-    print("📨 Sending Telegram alert...")
-    requests.post(url, data=data)
+    r = requests.post(url, data=data)
+    print(f"📤 Telegram alert sent: {r.status_code}")
 
 @app.route("/webhook", methods=["POST"])
 def webhook():
     try:
-        data = request.json
-        print("🔔 Webhook hit:", data)
+        print("📥 Webhook hit")
+
+        data = request.get_json(force=True)
+        if not data:
+            print("❌ No JSON body received")
+            return "No data", 400
+
         txs = data.get("transactions", [])
+        print(f"🔎 {len(txs)} transactions received")
 
         for tx in txs:
             wallet = tx.get("accountData", [{}])[0].get("account", "")
@@ -79,16 +98,14 @@ def webhook():
                 rows = c.fetchall()
                 unique_wallets = list(set([r[0] for r in rows]))
 
-                if len(unique_wallets) >= 1:  # testing mode
+                if len(unique_wallets) >= 1:
                     buyers_info = [(wallets[w][0], wallets[w][1], amt) for w, amt in rows if w in wallets][:1]
                     send_alert(token, contract, buyers_info)
-
         return "ok", 200
 
     except Exception as e:
-        print("❌ Webhook error:", e)
+        print(f"❌ Webhook error: {e}")
         return "error", 500
 
 if __name__ == "__main__":
-    print("🚀 Launching Flask server...")
     app.run(host="0.0.0.0", port=5000)
